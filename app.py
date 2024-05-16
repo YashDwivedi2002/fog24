@@ -27,6 +27,12 @@ def login():
             flash('Invalid email or password')
     return render_template('login.html')
 
+# logout
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect('/login')
+
 @app.route('/api/sensor',methods=['GET','POST'])
 def api_sensor():
     data = request.get_json()
@@ -48,8 +54,51 @@ def api_sensor():
 def dashboard():
     if not session.get('isauth'):
         return redirect('/login')
-    sensors = get_all(Sensor)
-    return render_template('dashboard.html', sensors=sensors)
+    db = opendb()
+    sensor1 = db.query(Sensor).filter_by(name='1').all()
+    sensor2 = db.query(Sensor).filter_by(name='2').all()
+    db.close()
+    return render_template('dashboard.html', 
+        sensor1=sensor1, 
+        sensor2=sensor2, 
+        sensor1_latest = sensor1[-10:],
+        sensor2_latest = sensor2[-10:],
+    )
+
+@app.route('/api/get/sensor/')
+def api_get_sensor():
+    db = opendb()
+    sensor1 = db.query(Sensor).filter_by(name='1').order_by(Sensor.created_on.desc()).limit(200).all()
+    sensor2 = db.query(Sensor).filter_by(name='2').order_by(Sensor.created_on.desc()).limit(200).all()
+    sensor1_dict = []
+    for s in sensor1:
+        sensor1_dict.append({
+            'id': s.id,
+            'name': s.name,
+            'location': s.location,
+            'tempf': s.tempf,
+            'temp': s.temp,
+            'humidity': s.humidity,
+            'created_on': s.created_on,
+        })
+    sensor2_dict = []
+    for s in sensor2:
+        sensor2_dict.append({
+            'id': s.id,
+            'name': s.name,
+            'location': s.location,
+            'tempf': s.tempf,
+            'temp': s.temp,
+            'humidity': s.humidity,
+            'created_on': s.created_on,
+        })
+    db.close()
+    response = {
+        'sensor1': sensor1_dict,
+        'sensor2': sensor2_dict,
+    }
+
+    return jsonify(response), 200
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8000, debug=True)
